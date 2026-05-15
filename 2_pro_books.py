@@ -1,18 +1,21 @@
-from fastapi import FastAPI, Body
-from pydantic import BaseModel, Field
 from typing import Optional
+
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
 
 app = FastAPI()
 
+
+# Normal Python class used to store book objects in memory
 class Book:
-    id:int
-    title:str
+    id: int
+    title: str
     author: str
-    description:str
-    rating:int
+    description: str
+    rating: int
     published_date: int
 
-    def __init__(self, id, title, author, description, rating, published_date):
+    def __init__(self, id: int, title: str, author: str, description: str, rating: int, published_date: int):
         self.id = id
         self.title = title
         self.author = author
@@ -21,15 +24,18 @@ class Book:
         self.published_date = published_date
 
 
-# Pydantic model for the book request used for validation
+# Pydantic model used for request body validation
 class BookRequest(BaseModel):
-    id: Optional[int] = Field(description="ID is not needed on create", default =None)
+    # ID is optional because for creating a new book, we generate it automatically
+    id: Optional[int] = Field(default=None, description="ID is not needed on create")
+
     title: str = Field(min_length=3)
     author: str = Field(min_length=1)
     description: str = Field(min_length=1, max_length=100)
     rating: int = Field(ge=1, le=5)
-    published_date: int = Field(description="Year of publication", default=None)
 
+    # Published year should be required, so no default=None here
+    published_date: int = Field(description="Year of publication", ge=1000, le=2100)
 
     model_config = {
         "json_schema_extra": {
@@ -38,6 +44,7 @@ class BookRequest(BaseModel):
                 "author": "J.R.R. Tolkien",
                 "description": "A fellowship of men and dwarves",
                 "rating": 4,
+                "published_date": 1937,
             }
         }
     }
@@ -46,10 +53,10 @@ class BookRequest(BaseModel):
 BOOKS = [
     Book(1, "The Hobbit", "J.R.R. Tolkien", "A fellowship of men and dwarves", 4, 1937),
     Book(2, "The Lord of the Rings", "J.R.R. Tolkien", "A fellowship of men and dwarves", 5, 1954),
-    Book(3, "Harry Potter and the Sorcerer's Stone", "J.K. Rowling","A young wizard begins his magical journey at Hogwarts", 5, 1997),
+    Book(3, "Harry Potter and the Sorcerer's Stone", "J.K. Rowling", "A young wizard begins his magical journey at Hogwarts", 5, 1997),
     Book(4, "1984", "George Orwell", "A dystopian world ruled by surveillance and control", 4, 1949),
     Book(5, "To Kill a Mockingbird", "Harper Lee", "A story of justice and racial inequality in a small town", 5, 1960),
-    Book(6, "The Great Gatsby", "F. Scott Fitzgerald", "A young man's adventures in a world of magic and alchemy", 4,1925),
+    Book(6, "The Great Gatsby", "F. Scott Fitzgerald", "A young man's adventures in a world of magic and alchemy", 4, 1925),
 ]
 
 
@@ -58,62 +65,79 @@ async def read_all_books():
     return BOOKS
 
 
-# Function that fetches the book by the id
+# Fetch one book by ID
 @app.get("/books/{book_id}")
 async def read_book(book_id: int):
     for book in BOOKS:
         if book.id == book_id:
             return book
+
     return {"message": "Book not found"}
 
 
-# Function that fetches the book by rating
-@app.get("/books/")
+# Fetch books by rating using query parameter
+# Example: /books/rating/?rating=5
+@app.get("/books/rating/")
 async def fetch_book_by_rating(rating: int):
     books_to_return = []
+
     for book in BOOKS:
         if book.rating == rating:
             books_to_return.append(book)
+
     return books_to_return
 
 
-# Function that get book by publish date
-async def find_by_publish_date(published_date: int)
+# Fetch books by published year using query parameter
+# Example: /books/published/?published_date=1937
+@app.get("/books/published/")
+async def find_by_publish_date(published_date: int):
     books_to_return = []
+
     for book in BOOKS:
         if book.published_date == published_date:
             books_to_return.append(book)
+
     return books_to_return
 
 
-
-# Function that creates a new book
+# Create a new book
 @app.post("/create_book")
 async def create_book(book_request: BookRequest):
-    new_book = Book(**book_request.model_dump())  # book_request.model_dump() -> converts Pydantic object → dictionary.
-    BOOKS.append(find_book_id(new_book))
-    return book_request
+    # Convert Pydantic model into dictionary, then unpack it into Book class
+    new_book = Book(**book_request.model_dump())
+
+    # Assign a new ID automatically
+    new_book = assign_book_id(new_book)
+
+    BOOKS.append(new_book)
+
+    return new_book
 
 
-# Function that assigns an id to the book
-@app.get("/books/id")
-def find_book_id(book: Book):
+# Helper function, not an API endpoint
+def assign_book_id(book: Book):
     book.id = 1 if len(BOOKS) == 0 else BOOKS[-1].id + 1
     return book
 
 
-# Update book with the book request
+# Update existing book
 @app.put("/books/update_book")
 async def update_book(book: BookRequest):
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book.id:
-            BOOKS[i] = book
+            BOOKS[i] = Book(**book.model_dump())
+            return {"message": "Book updated successfully"}
 
-# Delete the book by id
-@app.delete("/books/{book_id")
+    return {"message": "Book not found"}
+
+
+# Delete book by ID
+@app.delete("/books/{book_id}")
 async def delete_book(book_id: int):
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book_id:
             BOOKS.pop(i)
-            break
-    return {"message": "Book deleted"}
+            return {"message": "Book deleted successfully"}
+
+    return {"message": "Book not found"}
