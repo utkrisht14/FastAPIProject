@@ -8,12 +8,13 @@ from starlette import status
 import models
 from database import SessionLocal, engine
 from models import Todos
-
+from routers.auth import router
 app = FastAPI()
 
 # Create all database tables defined in models.py
 models.Base.metadata.create_all(bind=engine)
 
+app.include_router(router=router)
 
 # Database dependency function
 # It creates a database session for each request and closes it after the request is completed
