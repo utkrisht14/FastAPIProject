@@ -1,7 +1,8 @@
 from typing import Optional
 
-from fastapi import FastAPI, Path, Query
+from fastapi import FastAPI, Path, Query, HTTPException
 from pydantic import BaseModel, Field
+from starlette import status
 
 app = FastAPI()
 
@@ -60,24 +61,24 @@ BOOKS = [
 ]
 
 
-@app.get("/books")
+@app.get("/books", status_code=status.HTTP_200_OK)
 async def read_all_books():
     return BOOKS
 
 
 # Fetch one book by ID
-@app.get("/books/{book_id}")
+@app.get("/books/{book_id}", status_code=status.HTTP_200_OK)
 async def read_book(book_id: int = Path(gt=0, description="Book ID must be greater than 0")):
     for book in BOOKS:
         if book.id == book_id:
             return book
 
-    return {"message": "Book not found"}
+    raise HTTPException(status_code=404, detail="Book not found")
 
 
 # Fetch books by rating using query parameter
 # Example: /books/rating/?rating=5
-@app.get("/books/rating/")
+@app.get("/books/rating/", status_code=status.HTTP_200_OK)
 async def fetch_book_by_rating(rating: int= Query(gt=0, lt=6, description="Rating must be between 1 and 5")):
     books_to_return = []
 
@@ -90,7 +91,7 @@ async def fetch_book_by_rating(rating: int= Query(gt=0, lt=6, description="Ratin
 
 # Fetch books by published year using query parameter
 # Example: /books/published/?published_date=1937
-@app.get("/books/published/")
+@app.get("/books/published/", status_code=status.HTTP_200_OK)
 async def find_by_publish_date(published_date: int = Query(ge=1000, le=2100, description="Published date must be between 1000 and 2100")):
     books_to_return = []
 
@@ -102,7 +103,7 @@ async def find_by_publish_date(published_date: int = Query(ge=1000, le=2100, des
 
 
 # Create a new book
-@app.post("/create_book")
+@app.post("/create_book", status_code=status.HTTP_201_CREATED)
 async def create_book(book_request: BookRequest):
     # Convert Pydantic model into dictionary, then unpack it into Book class
     new_book = Book(**book_request.model_dump())
@@ -122,22 +123,28 @@ def assign_book_id(book: Book):
 
 
 # Update existing book
-@app.put("/books/update_book")
+@app.put("/books/update_book", status_code=status.HTTP_204_NO_CONTENT)
 async def update_book(book: BookRequest):
+    book_changed = False
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book.id:
             BOOKS[i] = Book(**book.model_dump())
+            book_changed = True
             return {"message": "Book updated successfully"}
+    if not book_changed:
+        raise HTTPException(status_code=404, detail="Book not found")
 
-    return {"message": "Book not found"}
 
 
 # Delete book by ID
-@app.delete("/books/{book_id}")
+@app.delete("/books/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(book_id: int = Path(gt=0)):
+    book_changed = False
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book_id:
             BOOKS.pop(i)
+            book_changed = True
             return {"message": "Book deleted successfully"}
 
-    return {"message": "Book not found"}
+    if not book_changed:
+        raise HTTPException(status_code=404, detail="Book not found")
