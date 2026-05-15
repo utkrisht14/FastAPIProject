@@ -6,6 +6,7 @@ BOOKS = [
     {"title": "A Brief History of Time", "author": "Stephen Hawking", "category": "Science"},
     {"title": "Sapiens", "author": "Yuval Noah Harari", "category": "History"},
     {"title": "The Alchemist", "author": "Paulo Coelho", "category": "Fiction"},
+    {"title": "Like a Flowing River", "author": "Paulo Coelho", "category": "Fiction"},
     {"title": "Atomic Habits", "author": "James Clear", "category": "Self-Help"},
     {"title": "Clean Code", "author": "Robert C. Martin", "category": "Programming"}
 ]
@@ -45,6 +46,18 @@ async def read_author_category_by_query(book_author: str, category: str):
 
     return books_to_return
 
+
+# Get all the books from the author
+@app.get("/books/author/{author_name}/")
+async def get_all_books_from_single_author(author_name: str):
+
+    author_books = []
+
+    for book in BOOKS:
+        if book.get("author").casefold() == author_name.casefold():
+            author_books.append(book)
+
+    return author_books
 
 @app.post("/books/create_book")
 async def create_book(new_book=Body()):
