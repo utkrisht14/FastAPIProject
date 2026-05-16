@@ -9,14 +9,19 @@ from starlette import status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from .auth import get_current_user
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/auth",
+    tags=["auth"],
+)
 
 SECRET_KEY = "9f8b3c8e9c6d2f4a1b7e8c9d0a1f2b3c4d5e6f7890abcdef1234567890abcd"
 ALGORITHM = "HS256"
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="auth/token")
+
 
 class CreateUserRequest(BaseModel):
     username: str
@@ -42,6 +47,7 @@ def get_db():
         db.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
+
 
 def authenticate_user(username: str, password: str, db):
     user = db.query(Users).filter(Users.username == username).first()
@@ -73,7 +79,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Could not validate user.")
 
-@router.post("/auth", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency,
         create_user_request: CreateUserRequest):
     create_user_model = Users(
