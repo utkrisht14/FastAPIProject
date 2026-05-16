@@ -1,5 +1,7 @@
 # Imports create_engine function from SQLAlchemy.
 # Used to establish connection between Python application and database.
+from pathlib import Path
+
 from sqlalchemy import create_engine
 
 
@@ -15,7 +17,8 @@ from sqlalchemy.ext.declarative import declarative_base
 
 # Database connection URL.
 # Here SQLite database named todos.db will be created in current project folder.
-SQLALCHEMY_DATABASE_URL = "sqlite:///./todos.db"
+DATABASE_PATH = Path(__file__).resolve().parent / "todos.db"
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 
 # Creates the main database engine/connection object.
